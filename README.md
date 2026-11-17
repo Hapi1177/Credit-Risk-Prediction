@@ -111,6 +111,39 @@ The saved pipeline was tested on three hand-written borrowers:
 
 These scores reflect the 50/50 training sample, so they aren't real-world probabilities of default.
 
+## Deployment
+
+The saved pipeline is served in a Streamlit web app in the `deployment/` folder. `app.py` loads `best_credit_risk_XGBoost_model.pkl` and takes raw feature values, because the `log1p` and scaling steps are inside the pipeline.
+
+**Features**
+
+- **Single applicant:** enter the 10 features to get a score, a High/Low risk label and a SHAP waterfall chart explaining the score.
+- **Batch (CSV):** upload a CSV of borrowers, score every row and download the results as `predictions.csv`. Files missing a required column are rejected with a clear message.
+- **Adjustable threshold:** a sidebar slider sets the cutoff for flagging high risk (default 0.50).
+- **Model info:** the sidebar shows the CV average precision (0.858) and the tuned hyperparameters.
+
+### Single applicant
+
+A borrower with 75% utilization and one 30–59-day and one 60–89-day late payment scores 0.856 and is flagged high risk.
+
+![Single applicant prediction in the Streamlit app](deployment/docs/Single%20Credit%20Risk%20Predictor%20Result.png)
+
+The SHAP waterfall shows the 60–89-day late payment (+1.03), high utilization (+0.45) and the 30–59-day late payment (+0.36) raising the score, while having no 90-day late payments (−0.20) lowers it.
+
+![SHAP explanation for a single applicant](deployment/docs/Single%20Credit%20Risk%20Predictor%20Shap%20result.png)
+
+### Batch prediction
+
+Each uploaded row gets a `default_probability` and a `prediction` column. Extra columns, such as an applicant ID, are kept in the output.
+
+![Batch prediction results](deployment/docs/Credit%20Risk%20Preditor%20Batch%20testing.png)
+
+A file missing a required column is rejected instead of crashing the app.
+
+![Batch upload with a missing column](deployment/docs/Credit%20Risk%20Predictor%20Batch%20missing%20column%20testing.png)
+
+The app labels the score "Probability of default", but like the scores above it reflects the 50/50 training sample, not a real default rate.
+
 ## Limitations and next steps
 
 - **Balanced sample:** real portfolios have far fewer delinquent borrowers, and this dataset doesn't give the real rate. Precision would be lower in practice, and scores would need recalibrating to a real portfolio before being read as probabilities of default.
@@ -125,13 +158,32 @@ These scores reflect the 50/50 training sample, so they aren't real-world probab
 ├── requirements.txt
 ├── best_credit_risk_XGBoost_model.pkl   # created by the notebook
 ├── assets/                              # README images
-└── data/
-    └── Credit Risk Benchmark Dataset.csv
+├── data/
+│   └── Credit Risk Benchmark Dataset.csv
+└── deployment/
+    ├── app.py                               # Streamlit app
+    ├── best_credit_risk_XGBoost_model.pkl   # copy of the saved pipeline
+    ├── requirements.txt                     # app requirements
+    └── docs/                                # app screenshots
 ```
 
 ## How to run
 
 1. Download the dataset from Kaggle into `data/`.
 2. Open `Credit-Risk-Prediction.ipynb` and run all cells. The first cell installs `requirements.txt`.
+
+### Run the app
+
+Requires Python 3.11 or newer. The app uses its own `requirements.txt` and the copy of the model inside `deployment/`.
+
+```
+cd deployment
+python -m pip install -r requirements.txt
+python -m streamlit run app.py
+```
+
+The app opens at `http://localhost:8501`.
+
+To put it online, push the repository to GitHub, then on [share.streamlit.io](https://share.streamlit.io) click **Create app**, select the repository and set the main file path to `deployment/app.py`, choose Python 3.12 under **Advanced settings** and click **Deploy**.
 
 Built and run on Python 3.14.
